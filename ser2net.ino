@@ -1,6 +1,7 @@
 #include "config.h"
 #include <WiFiManager.h>
 #include <WiFiClient.h>
+#include <FastLED.h>
 
 //串口1，打印调试日志
 #if (DEBUG)
@@ -18,7 +19,7 @@ HardwareSerial *DBGCOM = &Serial1;
 //串口0，对接2530串口
 HardwareSerial *COM = &Serial;
 
-//wifi server和数据收发缓冲区
+// wifi server和数据收发缓冲区
 WiFiServer *server;
 WiFiClient *TCPClient[MAX_NMEA_CLIENTS];
 uint8_t buf1[BUFFERSIZE];
@@ -26,10 +27,50 @@ uint16_t i1 = 0;
 uint8_t buf2[BUFFERSIZE];
 uint16_t i2 = 0;
 
+//与灯个数相同的颜色数组
+CRGB leds[NUM_LEDS];
+enum LedColor
+{
+  LedColorRed = 0,
+  LedColorGreen = 1,
+  LedColorBlue = 2
+};
 
-//setup
+//配置灯的颜色函数
+void ledShowColor(LedColor color)
+{
+  CRGB dstColor;
+
+  switch (color)
+  {
+  case LedColorRed:
+    dstColor = CRGB(255, 0, 0);
+    break;
+
+  case LedColorGreen:
+    dstColor = CRGB(0, 255, 0);
+    break;
+
+  case LedColorBlue:
+    dstColor = CRGB(0, 0, 255);
+    break;
+
+  default:
+    dstColor = CRGB(255, 0, 0);
+    break;
+  }
+
+  leds[0] = dstColor;
+  FastLED.show();
+}
+
+// setup
 void setup()
 {
+  //配置LED灯
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+  ledShowColor(LedColorRed);
+
   /*
   拨盘开关引脚配置
   opt3：USB TTY <==> ESP 8266 debug port UART1.  ESP 8266 TTY UART0 <==> E18 TTY
@@ -67,6 +108,7 @@ void setup()
   }
 
   // start TCP server
+  ledShowColor(LedColorGreen);
   LOGD("TCP server: %s:%d", WiFi.localIP().toString().c_str(), TCP_PORT);
   static WiFiServer server_0(TCP_PORT);
   server = &server_0;
@@ -74,7 +116,7 @@ void setup()
   server->setNoDelay(true);
 }
 
-//loop
+// loop
 void loop()
 {
   //妖神这块for循环我觉得没必要，先留着

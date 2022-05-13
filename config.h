@@ -9,6 +9,10 @@
 #define TTY_SEL0_PIN    16
 #define TTY_SEL1_PIN    5
 
+//ws2812b 灯的引脚和个数定义
+#define LED_PIN 15
+#define NUM_LEDS 1
+
 /*************************  COM Port 0 *******************************/
 #define UART_BAUD0 115200        // Baudrate UART0
 #define SERIAL_PARAM0 SERIAL_8N1 // Data/Parity/Stop UART0
