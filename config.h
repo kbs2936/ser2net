@@ -5,8 +5,7 @@
 #define MAX_NMEA_CLIENTS 1
 #define TCP_PORT         8880
 
-//引脚定义
-#define ZGB_RST_PIN     12
+//拨盘开关连接8266芯片的引脚号定义
 #define TTY_SEL0_PIN    16
 #define TTY_SEL1_PIN    5
 

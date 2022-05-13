@@ -6,5 +6,6 @@
         "streambuf": "cpp",
         "typeinfo": "cpp",
         "utility": "cpp"
-    }
+    },
+    "git.ignoreLimitWarning": true
 }

@@ -26,19 +26,12 @@ uint16_t i1 = 0;
 uint8_t buf2[BUFFERSIZE];
 uint16_t i2 = 0;
 
-//复位2530
-static inline void reset_zigbee()
-{
-  digitalWrite(ZGB_RST_PIN, LOW);
-  delay(500);
-  digitalWrite(ZGB_RST_PIN, HIGH);
-}
 
 //setup
 void setup()
 {
   /*
-  拨盘开关引脚配置，xx你采用手动切换无需这块代码
+  拨盘开关引脚配置
   opt3：USB TTY <==> ESP 8266 debug port UART1.  ESP 8266 TTY UART0 <==> E18 TTY
   */
   pinMode(TTY_SEL0_PIN, OUTPUT);
@@ -79,11 +72,6 @@ void setup()
   server = &server_0;
   server->begin();
   server->setNoDelay(true);
-
-  //复位2530，xx你那边复位引脚与我不同
-  pinMode(ZGB_RST_PIN, OUTPUT);
-  digitalWrite(ZGB_RST_PIN, HIGH);
-  reset_zigbee();
 }
 
 //loop
