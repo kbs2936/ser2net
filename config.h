@@ -1,14 +1,11 @@
 #ifndef _ESP_SERIAL_BRIDGE_CONFIG_H_
 #define _ESP_SERIAL_BRIDGE_CONFIG_H_
 
-
+//最大tcp client连接数
 #define MAX_NMEA_CLIENTS 1
 #define TCP_PORT         8880
 
-
-unsigned char qos = 1; //subscribe qos
-bool retained = false;
-
+//引脚定义
 #define ZGB_RST_PIN     12
 #define TTY_SEL0_PIN    16
 #define TTY_SEL1_PIN    5

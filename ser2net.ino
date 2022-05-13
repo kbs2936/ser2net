@@ -2,7 +2,7 @@
 #include <WiFiManager.h>
 #include <WiFiClient.h>
 
-// For debug log output
+//串口1，打印调试日志
 #if (DEBUG)
 HardwareSerial *DBGCOM = &Serial1;
 #define LOGD(...)                \
@@ -15,8 +15,10 @@ HardwareSerial *DBGCOM = &Serial1;
 #define LOGD(...)
 #endif
 
+//串口0，对接2530串口
 HardwareSerial *COM = &Serial;
 
+//wifi server和数据收发缓冲区
 WiFiServer *server;
 WiFiClient *TCPClient[MAX_NMEA_CLIENTS];
 uint8_t buf1[BUFFERSIZE];
@@ -24,6 +26,7 @@ uint16_t i1 = 0;
 uint8_t buf2[BUFFERSIZE];
 uint16_t i2 = 0;
 
+//复位2530
 static inline void reset_zigbee()
 {
   digitalWrite(ZGB_RST_PIN, LOW);
@@ -31,9 +34,13 @@ static inline void reset_zigbee()
   digitalWrite(ZGB_RST_PIN, HIGH);
 }
 
+//setup
 void setup()
 {
-  // opt3：USB TTY <==> ESP 8266 debug port UART1.  ESP 8266 TTY UART0 <==> E18 TTY
+  /*
+  拨盘开关引脚配置，xx你采用手动切换无需这块代码
+  opt3：USB TTY <==> ESP 8266 debug port UART1.  ESP 8266 TTY UART0 <==> E18 TTY
+  */
   pinMode(TTY_SEL0_PIN, OUTPUT);
   digitalWrite(TTY_SEL0_PIN, LOW);
   pinMode(TTY_SEL1_PIN, OUTPUT);
@@ -73,16 +80,19 @@ void setup()
   server->begin();
   server->setNoDelay(true);
 
+  //复位2530，xx你那边复位引脚与我不同
   pinMode(ZGB_RST_PIN, OUTPUT);
   digitalWrite(ZGB_RST_PIN, HIGH);
   reset_zigbee();
 }
 
+//loop
 void loop()
 {
+  //妖神这块for循环我觉得没必要，先留着
   for (byte i = 0; i < MAX_NMEA_CLIENTS; i++)
   {
-    //find disconnected spot
+    // find disconnected spot
     if (TCPClient[i] && !TCPClient[i]->connected())
     {
       TCPClient[i]->stop();
@@ -111,6 +121,7 @@ void loop()
         LOGD("New client for COM");
       }
     }
+    //妖神下面2行代码感觉是错的，所以我先屏蔽，为毛每次要去stop client?
     // no free/disconnected spot so reject
     // WiFiClient TmpserverClient = server->available();
     // TmpserverClient.stop();
@@ -118,6 +129,7 @@ void loop()
 
   if (COM != NULL)
   {
+    //读取 tcp client 发来的数据，然后通过 串口0 tx 发给2530
     for (byte cln = 0; cln < MAX_NMEA_CLIENTS; cln++)
     {
       if (TCPClient[cln])
@@ -142,6 +154,7 @@ void loop()
       }
     }
 
+    //读取2530发来的数据，发给 tcp client
     if (COM->available())
     {
       while (COM->available())
