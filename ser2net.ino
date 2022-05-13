@@ -108,7 +108,10 @@ void setup()
   }
 
   // start TCP server
-  ledShowColor(LedColorGreen);
+  // ledShowColor(LedColorGreen);
+  FastLED.clear();
+  FastLED.clearData();
+  FastLED.show();
   LOGD("TCP server: %s:%d", WiFi.localIP().toString().c_str(), TCP_PORT);
   static WiFiServer server_0(TCP_PORT);
   server = &server_0;
