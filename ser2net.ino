@@ -1,7 +1,7 @@
 #include "config.h"
 #include <WiFiManager.h>
 #include <WiFiClient.h>
-#include <FastLED.h>
+#include <Adafruit_NeoPixel.h>
 
 //串口1，打印调试日志
 #if (DEBUG)
@@ -30,8 +30,7 @@ uint16_t i2 = 0;
 // loop过程中检测到wifi断开连接，则复位此标志位
 bool isWiFiConnected = false;
 
-//与灯个数相同的颜色数组
-CRGB ledColorArray[NUM_LEDS];
+//灯颜色枚举
 typedef enum
 {
   LedColorRed = 0,
@@ -41,48 +40,60 @@ typedef enum
   LedColorOff = 4
 } LedColor;
 
+//(灯总数,使用引脚,WS2812B一般都是800这个参数不用动)
+Adafruit_NeoPixel WS2812B(1, LED_PIN, NEO_GRB + NEO_KHZ800);
+
 //配置灯的颜色函数
 void ledShowColor(LedColor color)
 {
-  CRGB dstColor;
-
   switch (color)
   {
   case LedColorRed:
-    dstColor = CRGB(255, 0, 0);
+    singleLedColor(0, 255, 0, 0);
     break;
 
   case LedColorGreen:
-    dstColor = CRGB(0, 255, 0);
+    singleLedColor(0, 0, 255, 0);
     break;
 
   case LedColorBlue:
-    dstColor = CRGB(0, 0, 255);
+    singleLedColor(0, 0, 0, 255);
     break;
 
   case LedColorBlack:
-    dstColor = CRGB::Black;
+    singleLedColor(0, 0, 0, 0);
     break;
 
   case LedColorOff:
-    FastLED.setBrightness(0);
-    FastLED.show();
-    return;
+    singleLedColor(0, 0, 0, 0);
     break;
 
   default:
-    dstColor = CRGB::Red;
+
     break;
   }
+}
 
-  FastLED.setBrightness(150);
-  ledColorArray[0] = dstColor;
-  FastLED.show();
+/********************
+   设置灯带中某一个灯的颜色。
+   单灯颜色(灯位置,红,绿,蓝)
+   下标从0开始
+********************/
+void singleLedColor(int index, int R, int G, int B)
+{
+  WS2812B.setPixelColor(index, (((R & 0xffffff) << 16) | ((G & 0xffffff) << 8) | B));
+  WS2812B.show();
 }
 
 // setup
 void setup()
 {
+  //配置LED灯
+  WS2812B.begin();
+  WS2812B.clear();
+  WS2812B.setBrightness(150);
+  ledShowColor(LedColorRed);
+
   /*
   拨盘开关引脚配置
   opt3：USB TTY <==> ESP 8266 debug port UART1.  ESP 8266 TTY UART0 <==> E18 TTY
@@ -98,10 +109,6 @@ void setup()
 #if (DEBUG)
   DBGCOM->begin(115200);
 #endif
-
-  //配置LED灯
-  FastLED.addLeds<WS2812, LED_PIN, GRB>(ledColorArray, NUM_LEDS);
-  ledShowColor(LedColorRed);
 
   /*
   配置 WIFI，在 loop 中断网，网络恢复后会自动重连上，不需要用 if (WiFi.status() == WL_CONNECTED) 去判断网络和做重连的操作
