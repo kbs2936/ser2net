@@ -27,14 +27,19 @@ uint16_t i1 = 0;
 uint8_t buf2[BUFFERSIZE];
 uint16_t i2 = 0;
 
+// loop过程中检测到wifi断开连接，则复位此标志位
+bool isWiFiConnected = false;
+
 //与灯个数相同的颜色数组
-CRGB leds[NUM_LEDS];
-enum LedColor
+CRGB ledColorArray[NUM_LEDS];
+typedef enum
 {
   LedColorRed = 0,
   LedColorGreen = 1,
-  LedColorBlue = 2
-};
+  LedColorBlue = 2,
+  LedColorBlack = 3,
+  LedColorOff = 4
+} LedColor;
 
 //配置灯的颜色函数
 void ledShowColor(LedColor color)
@@ -55,22 +60,29 @@ void ledShowColor(LedColor color)
     dstColor = CRGB(0, 0, 255);
     break;
 
+  case LedColorBlack:
+    dstColor = CRGB::Black;
+    break;
+
+  case LedColorOff:
+    FastLED.setBrightness(0);
+    FastLED.show();
+    return;
+    break;
+
   default:
-    dstColor = CRGB(255, 0, 0);
+    dstColor = CRGB::Red;
     break;
   }
 
-  leds[0] = dstColor;
+  FastLED.setBrightness(150);
+  ledColorArray[0] = dstColor;
   FastLED.show();
 }
 
 // setup
 void setup()
 {
-  //配置LED灯
-  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
-  ledShowColor(LedColorRed);
-
   /*
   拨盘开关引脚配置
   opt3：USB TTY <==> ESP 8266 debug port UART1.  ESP 8266 TTY UART0 <==> E18 TTY
@@ -86,6 +98,10 @@ void setup()
 #if (DEBUG)
   DBGCOM->begin(115200);
 #endif
+
+  //配置LED灯
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(ledColorArray, NUM_LEDS);
+  ledShowColor(LedColorRed);
 
   /*
   配置 WIFI，在 loop 中断网，网络恢复后会自动重连上，不需要用 if (WiFi.status() == WL_CONNECTED) 去判断网络和做重连的操作
@@ -108,10 +124,8 @@ void setup()
   }
 
   // start TCP server
-  // ledShowColor(LedColorGreen);
-  FastLED.clear();
-  FastLED.clearData();
-  FastLED.show();
+  isWiFiConnected = true;
+  ledShowColor(LedColorOff);
   LOGD("TCP server: %s:%d", WiFi.localIP().toString().c_str(), TCP_PORT);
   static WiFiServer server_0(TCP_PORT);
   server = &server_0;
@@ -122,6 +136,27 @@ void setup()
 // loop
 void loop()
 {
+  //断网亮灯，重新联网灭灯
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    //通过标志位，loop期间断网不要重复设置灯红色，只要设置一次即可，网络恢复同理也不要灭灯多次
+    if (isWiFiConnected)
+    {
+      isWiFiConnected = false;
+      ledShowColor(LedColorRed);
+      LOGD("Wifi disconnect");
+    }
+  }
+  else
+  {
+    if (!isWiFiConnected)
+    {
+      ledShowColor(LedColorOff);
+      LOGD("Wifi connect");
+    }
+    isWiFiConnected = true;
+  }
+
   //妖神这块for循环我觉得没必要，先留着
   for (byte i = 0; i < MAX_NMEA_CLIENTS; i++)
   {
