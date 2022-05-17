@@ -65,7 +65,8 @@ void ledShowColor(LedColor color)
     break;
 
   case LedColorOff:
-    singleLedColor(0, 0, 0, 0);
+    WS2812B.clear();
+    WS2812B.show();
     break;
 
   default:
@@ -91,7 +92,7 @@ void setup()
   //配置LED灯
   WS2812B.begin();
   WS2812B.clear();
-  WS2812B.setBrightness(150);
+  WS2812B.setBrightness(120);
   ledShowColor(LedColorRed);
 
   /*
