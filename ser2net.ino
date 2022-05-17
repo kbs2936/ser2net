@@ -27,18 +27,18 @@ uint16_t i1 = 0;
 uint8_t buf2[BUFFERSIZE];
 uint16_t i2 = 0;
 
-// loop过程中检测到wifi断开连接，则复位此标志位
+//loop过程中检测到wifi断开连接，则复位此标志位
 bool isWiFiConnected = false;
 
 //灯颜色枚举
-typedef enum
+enum LedColor
 {
   LedColorRed = 0,
   LedColorGreen = 1,
   LedColorBlue = 2,
   LedColorBlack = 3,
   LedColorOff = 4
-} LedColor;
+};
 
 //(灯总数,使用引脚,WS2812B一般都是800这个参数不用动)
 Adafruit_NeoPixel WS2812B(1, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -92,7 +92,7 @@ void setup()
   //配置LED灯
   WS2812B.begin();
   WS2812B.clear();
-  WS2812B.setBrightness(120);
+  WS2812B.setBrightness(100);
   ledShowColor(LedColorRed);
 
   /*
@@ -165,24 +165,24 @@ void loop()
     isWiFiConnected = true;
   }
 
-  //妖神这块for循环我觉得没必要，先留着
+  //把所有断开的客户端移除
   for (byte i = 0; i < MAX_NMEA_CLIENTS; i++)
   {
-    // find disconnected spot
     if (TCPClient[i] && !TCPClient[i]->connected())
     {
       TCPClient[i]->stop();
       delete TCPClient[i];
       TCPClient[i] = NULL;
-      LOGD("Client disconnected");
+      LOGD("Client disconnected 1");
     }
   }
 
+  //如果有新客户端进来，读取过 server->available() 后，这个 hasClient 就不会为true了，直到有新的客户端连进来
   if (server->hasClient())
   {
+    //找出被上面那段代码移除的客户端的数组位置、或者当前检已经断开的客户端并移除，然后读取 available 把新的客户端加到数组
     for (byte i = 0; i < MAX_NMEA_CLIENTS; i++)
     {
-      // find free/disconnected spot
       if (!TCPClient[i] || !TCPClient[i]->connected())
       {
         if (TCPClient[i])
@@ -190,17 +190,20 @@ void loop()
           TCPClient[i]->stop();
           delete TCPClient[i];
           TCPClient[i] = NULL;
-          LOGD("Client disconnected");
+          LOGD("Client disconnected 2");
         }
-        TCPClient[i] = new WiFiClient;
+        TCPClient[i] = new WiFiClient; //先放指针，再用指针指向进来的客户端
         *TCPClient[i] = server->available();
         LOGD("New client for COM");
       }
     }
-    //妖神下面2行代码感觉是错的，所以我先屏蔽，为毛每次要去stop client?
-    // no free/disconnected spot so reject
-    // WiFiClient TmpserverClient = server->available();
-    // TmpserverClient.stop();
+    //遍历之后，如果之前数组里的客户端已满，并且都是连接的状态，无法接受新的客户端，则把新客户端读走并 stop
+    WiFiClient TmpserverClient = server->available();
+    if (TmpserverClient)
+    {
+      TmpserverClient.stop();
+      LOGD("Client's array is full, stop new coming");
+    }
   }
 
   if (COM != NULL)
