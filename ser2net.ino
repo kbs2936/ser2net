@@ -43,6 +43,7 @@ enum LedColor
 //(灯总数,使用引脚,WS2812B一般都是800这个参数不用动)
 Adafruit_NeoPixel WS2812B(1, LED_PIN, NEO_GRB + NEO_KHZ800);
 
+
 //配置灯的颜色函数
 void ledShowColor(LedColor color)
 {
@@ -180,6 +181,7 @@ void loop()
   //如果有新客户端进来，读取过 server->available() 后，这个 hasClient 就不会为true了，直到有新的客户端连进来
   if (server->hasClient())
   {
+    LOGD("server->hasClient");
     //找出被上面那段代码移除的客户端的数组位置、或者当前检已经断开的客户端并移除，然后读取 available 把新的客户端加到数组
     for (byte i = 0; i < MAX_NMEA_CLIENTS; i++)
     {
@@ -192,7 +194,11 @@ void loop()
           TCPClient[i] = NULL;
           LOGD("Client disconnected 2");
         }
-        TCPClient[i] = new WiFiClient; //先放指针，再用指针指向进来的客户端
+        /*
+        堆上开辟对象内存，指针指向它，然后把新进客户端的成员属性赋值给它，对象内存还是2个，只是成员变量值相同
+        为什么用指针？直接2个对象赋值不就好了
+        */
+        TCPClient[i] = new WiFiClient; 
         *TCPClient[i] = server->available();
         LOGD("New client for COM");
       }
@@ -203,6 +209,10 @@ void loop()
     {
       TmpserverClient.stop();
       LOGD("Client's array is full, stop new coming");
+    }
+    else
+    {
+      LOGD("All clients are accepted");
     }
   }
 
@@ -223,7 +233,7 @@ void loop()
         {
           COM->write(buf1, i1); // now send to UART
 #if (DEBUG)
-          DBGCOM->printf("TX(%d):\t", i1);
+          DBGCOM->printf("W->Z(%d):\t", i1);
           for (int i = 0; i < i1; i++)
             DBGCOM->printf("%02x ", buf1[i]);
           DBGCOM->println();
@@ -252,7 +262,7 @@ void loop()
             TCPClient[cln]->write(buf2, i2); // send the buffer to TCP port:8880
         }
 #if (DEBUG)
-        DBGCOM->printf("RX(%d):\t", i2);
+        DBGCOM->printf("Z->W(%d):\t", i2);
         for (int i = 0; i < i2; i++)
           DBGCOM->printf("%02x ", buf2[i]);
         DBGCOM->println();
