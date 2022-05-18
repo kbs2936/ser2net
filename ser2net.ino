@@ -90,7 +90,7 @@ void singleLedColor(int index, int R, int G, int B)
 // setup
 void setup()
 {
-  //配置LED灯
+  //配置LED灯，未联网红色、联网绿色、node连进来蓝色
   WS2812B.begin();
   WS2812B.clear();
   WS2812B.setBrightness(100);
@@ -134,7 +134,7 @@ void setup()
 
   // start TCP server
   isWiFiConnected = true;
-  ledShowColor(LedColorOff);
+  ledShowColor(LedColorGreen);
   LOGD("TCP server: %s:%d", WiFi.localIP().toString().c_str(), TCP_PORT);
   static WiFiServer server_0(TCP_PORT);
   server = &server_0;
@@ -155,12 +155,14 @@ void loop()
       ledShowColor(LedColorRed);
       LOGD("Wifi disconnect");
     }
+    delay(200);
+    return;
   }
   else
   {
     if (!isWiFiConnected)
     {
-      ledShowColor(LedColorOff);
+      ledShowColor(LedColorGreen);
       LOGD("Wifi connect");
     }
     isWiFiConnected = true;
@@ -175,6 +177,7 @@ void loop()
       delete TCPClient[i];
       TCPClient[i] = NULL;
       LOGD("Client disconnected 1");
+      ledShowColor(LedColorGreen);
     }
   }
 
@@ -193,6 +196,7 @@ void loop()
           delete TCPClient[i];
           TCPClient[i] = NULL;
           LOGD("Client disconnected 2");
+          ledShowColor(LedColorGreen);
         }
         /*
         堆上开辟对象内存，指针指向它，然后把新进客户端的成员属性赋值给它，对象内存还是2个，只是成员变量值相同
@@ -201,6 +205,7 @@ void loop()
         TCPClient[i] = new WiFiClient; 
         *TCPClient[i] = server->available();
         LOGD("New client for COM");
+        ledShowColor(LedColorBlue);
       }
     }
     //遍历之后，如果之前数组里的客户端已满，并且都是连接的状态，无法接受新的客户端，则把新客户端读走并 stop
