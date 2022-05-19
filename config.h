@@ -9,6 +9,8 @@
 #define TTY_SEL0_PIN    16
 #define TTY_SEL1_PIN    5
 
+#define ZGB_RST_PIN     12
+
 //ws2812b 灯的引脚和个数定义
 #define LED_PIN 15
 #define NUM_LEDS 1

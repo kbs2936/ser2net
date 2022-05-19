@@ -87,13 +87,27 @@ void singleLedColor(int index, int R, int G, int B)
   WS2812B.show();
 }
 
+void resetZigbee()
+{
+  digitalWrite(ZGB_RST_PIN, LOW);
+  delay(500);
+  digitalWrite(ZGB_RST_PIN, HIGH);
+  LOGD("Reset zigbee");
+}
+
 // setup
 void setup()
 {
+  //8266复位也同时复位一下zigbee
+  pinMode(ZGB_RST_PIN, OUTPUT);
+  digitalWrite(ZGB_RST_PIN, HIGH);
+  delay(100);
+  resetZigbee();
+
   //配置LED灯，未联网红色、联网绿色、node连进来蓝色
   WS2812B.begin();
   WS2812B.clear();
-  WS2812B.setBrightness(100);
+  WS2812B.setBrightness(80);
   ledShowColor(LedColorRed);
 
   /*
@@ -128,7 +142,7 @@ void setup()
   //网络设置界面exit会走返回这个false。web界面wifi密码连接错误此方法不会返回，还是重新变回ap
   if (!wifiManager.autoConnect(apName.c_str()))
   {
-    LOGD("Failed to connect, now reset");
+    LOGD("[ERROR] Failed to connect, now reset");
     delay(100);
     ESP.reset();
   }
@@ -154,7 +168,7 @@ void loop()
     {
       isWiFiConnected = false;
       ledShowColor(LedColorRed);
-      LOGD("Wifi disconnect");
+      LOGD("[ERROR] Wifi disconnect");
     }
     delay(200);
     return;
@@ -177,8 +191,9 @@ void loop()
       TCPClient[i]->stop();
       delete TCPClient[i];
       TCPClient[i] = NULL;
-      LOGD("Client disconnected 1");
+      LOGD("[ERROR] Client disconnected 1");
       ledShowColor(LedColorGreen);
+      resetZigbee(); //node断开时复位一下 zigbee，避免node再连上时候无法握手通信
     }
   }
 
@@ -196,8 +211,9 @@ void loop()
           TCPClient[i]->stop();
           delete TCPClient[i];
           TCPClient[i] = NULL;
-          LOGD("Client disconnected 2");
+          LOGD("[ERROR] Client disconnected 2");
           ledShowColor(LedColorGreen);
+          resetZigbee(); //node断开时复位一下 zigbee，避免node再连上时候无法握手通信
         }
         /*
         堆上开辟对象内存，指针指向它，然后把新进客户端的成员属性赋值给它，对象内存还是2个，只是成员变量值相同
@@ -214,7 +230,7 @@ void loop()
     if (TmpserverClient)
     {
       TmpserverClient.stop();
-      LOGD("Client's array is full, stop new coming");
+      LOGD("[ERROR] Client's array is full, stop new coming");
     }
     else
     {
