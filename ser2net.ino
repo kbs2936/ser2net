@@ -119,9 +119,10 @@ void setup()
   */
   WiFiManager wifiManager;
   wifiManager.setConnectTimeout(10);
-
-  randomSeed(analogRead(15));
-  String apName = String("ZigBeeAP_") + String(random(100, 999));
+  // randomSeed(analogRead(15));
+  // String apName = String("ZigBeeAP_") + String(random(100, 999)); //先不用随机数了，使用芯片id做ap和host的名字
+  String apName = String("ZigBeeGateWay_") + String(ESP.getChipId());
+  wifiManager.setHostname(apName);
   LOGD("\n\n Begin connect wifi, apName = %s", apName.c_str());
 
   //网络设置界面exit会走返回这个false。web界面wifi密码连接错误此方法不会返回，还是重新变回ap
