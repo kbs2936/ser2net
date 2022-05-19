@@ -2,6 +2,7 @@
 #include <WiFiManager.h>
 #include <WiFiClient.h>
 #include <Adafruit_NeoPixel.h>
+#include <Ticker.h>
 
 //---------------------------------------------------------------------------------------------------------------------
 // Debug串口1，打印调试日志
@@ -33,6 +34,9 @@ bool isWiFiConnected = false;
 
 //(灯总数,使用引脚,WS2812B一般都是800这个参数不用动)
 Adafruit_NeoPixel WS2812B(1, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+//断网定时器，setup和loop中多上时间没连上网络则重启
+Ticker timer;
 
 //---------------------------------------------------------------------------------------------------------------------
 /**
@@ -83,6 +87,14 @@ void singleLedColor(int index, int R, int G, int B)
 }
 
 /**
+ * @description: 复位8266模组
+ */
+void resetESP8266()
+{
+  ESP.reset();
+}
+
+/**
  * @description: 复位E18模块
  */
 void resetZigbee()
@@ -106,6 +118,8 @@ void checkNetwork()
       isWiFiConnected = false;
       ledShowColor(LedColorRed);
       LOGD("[ERROR] Wifi disconnect");
+      //开启定时器，10分钟内没连网成功则重启
+      timer.once(60 * 10, resetESP8266);
     }
   }
   else
@@ -114,13 +128,14 @@ void checkNetwork()
     {
       ledShowColor(LedColorGreen);
       LOGD("Wifi connect");
+      timer.detach();
     }
     isWiFiConnected = true;
   }
 }
 
 /**
- * @description：检查 tcp client(zigbee2mqtt node)的连接状态，已断开的移除，新连接的加到数组 
+ * @description：检查 tcp client(zigbee2mqtt node)的连接状态，已断开的移除，新连接的加到数组
  */
 void checkTcpClient()
 {
@@ -290,6 +305,9 @@ void setup()
   wifiManager.setHostname(apName);
   LOGD("\n\n Begin connect wifi, apName = %s", apName.c_str());
 
+  //开启定时器，10分钟内没连网成功则重启
+  timer.once(60 * 10, resetESP8266);
+
   //网络设置界面exit会走返回这个false。web界面wifi密码连接错误此方法不会返回，还是重新变回ap
   if (!wifiManager.autoConnect(apName.c_str()))
   {
@@ -299,6 +317,7 @@ void setup()
   }
 
   //开启 TCP server
+  timer.detach();
   isWiFiConnected = true;
   ledShowColor(LedColorGreen);
   LOGD("TCP server: %s:%d", WiFi.localIP().toString().c_str(), TCP_PORT);
@@ -316,7 +335,7 @@ void loop()
   //检查网络状态
   checkNetwork();
 
-  //检查 tcp client(zigbee2mqtt node)的连接状态，已断开的移除，新连接的加到数组 
+  //检查 tcp client(zigbee2mqtt node)的连接状态，已断开的移除，新连接的加到数组
   checkTcpClient();
 
   //读取 tcp client 发来的数据，然后通过 串口0-tx 发给E18
