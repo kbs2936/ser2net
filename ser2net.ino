@@ -264,12 +264,6 @@ void zigbee2Wifi()
  */
 void setup()
 {
-  // 8266复位也同时复位一下zigbee
-  pinMode(ZGB_RST_PIN, OUTPUT);
-  digitalWrite(ZGB_RST_PIN, HIGH);
-  delay(100);
-  resetZigbee();
-
   //配置LED灯，未联网红色、联网绿色、node连进来蓝色
   WS2812B.begin();
   WS2812B.clear();
@@ -325,6 +319,12 @@ void setup()
   server = &server_0;
   server->begin();
   server->setNoDelay(true);
+
+  // 8266复位也同时复位一下zigbee
+  pinMode(ZGB_RST_PIN, OUTPUT);
+  digitalWrite(ZGB_RST_PIN, HIGH);
+  delay(100);
+  resetZigbee();
 }
 
 /**
