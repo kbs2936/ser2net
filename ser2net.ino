@@ -267,7 +267,7 @@ void setup()
   //配置LED灯，未联网红色、联网绿色、node连进来蓝色
   WS2812B.begin();
   WS2812B.clear();
-  WS2812B.setBrightness(80);
+  WS2812B.setBrightness(130);
   ledShowColor(LedColorRed);
 
   /*
