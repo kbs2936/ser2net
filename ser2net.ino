@@ -3,6 +3,8 @@
 #include <WiFiClient.h>
 #include <Adafruit_NeoPixel.h>
 #include <Ticker.h>
+#include <FS.h>
+#include <ArduinoJson.h>
 
 //---------------------------------------------------------------------------------------------------------------------
 // Debug串口1，打印调试日志
@@ -38,7 +40,81 @@ Adafruit_NeoPixel WS2812B(1, LED_PIN, NEO_GRB + NEO_KHZ800);
 //断网定时器，setup和loop中多上时间没连上网络则重启
 Ticker timer;
 
+// mqtt参数结构体定义及其变量定义
+struct MqttConfig
+{
+  char mqttServer[32];
+  char mqttPort[6];
+  char mqttUser[32];
+  char mqttPass[32];
+  char mqttSubTopic[32];
+};
+
+struct MqttConfig config = {
+    "",
+    "1883",
+    "",
+    "",
+    "z2mp"};
+
+//用于保存数据的标志
+bool isSaveConfig = false;
+
 //---------------------------------------------------------------------------------------------------------------------
+/**
+ * @description: 从文件系统中读取mqtt的配置参数
+ */
+void getMqttConfig()
+{
+#define READ_STR_CONFIG_FROM_JSON(name) \
+  if (strlen(doc[#name]))               \
+  strlcpy(config.name, doc[#name], sizeof(config.name))
+
+#define READ_INT_CONFIG_FROM_JSON(name) \
+  if (doc[#name])                       \
+  config.name = doc[#name]
+
+  StaticJsonDocument<512> doc;
+
+  if (!SPIFFS.begin())
+  {
+    LOGD("[ERROR] Mount spiffs failed.");
+    return;
+  }
+
+  File f = SPIFFS.open("/mqtt.json", "r");
+  if (!f)
+  {
+    LOGD("[ERROR] Config file not exist.");
+    SPIFFS.end();
+    return;
+  }
+
+  DeserializationError error = deserializeJson(doc, f);
+  if (error)
+  {
+    LOGD("[ERROR] Failed to read file, using default configuration.");
+    SPIFFS.end();
+    return;
+  }
+
+  READ_STR_CONFIG_FROM_JSON(mqttServer);
+  READ_STR_CONFIG_FROM_JSON(mqttPort);
+  READ_STR_CONFIG_FROM_JSON(mqttUser);
+  READ_STR_CONFIG_FROM_JSON(mqttPass);
+  READ_STR_CONFIG_FROM_JSON(mqttSubTopic);
+  SPIFFS.end();
+}
+
+/**
+ * @description: Web设置wifi界面点击保存的回调函数
+ */
+void saveConfigCallback()
+{
+  LOGD("Should save config");
+  isSaveConfig = true;
+}
+
 /**
  * @description: 配置灯的颜色
  * @param color：LedColor
@@ -286,6 +362,15 @@ void setup()
   DBGCOM->begin(115200);
 #endif
 
+  //从文件系统中读取mqtt的配置参数，以便带到web配网界面中显示
+  LOGD("\n");
+  getMqttConfig();
+  WiFiManagerParameter custom_mqtt_server("server", "mqtt_server", config.mqttServer, sizeof(config.mqttServer));
+  WiFiManagerParameter custom_mqtt_port("port", "mqtt_port", config.mqttPort, sizeof(config.mqttPort));
+  WiFiManagerParameter custom_mqtt_user("user", "mqtt_user", config.mqttUser, sizeof(config.mqttUser));
+  WiFiManagerParameter custom_mqtt_pass("pass", "mqtt_pass", config.mqttPass, sizeof(config.mqttPass));
+  WiFiManagerParameter custom_mqtt_topic("topic", "mqtt_topic", config.mqttSubTopic, sizeof(config.mqttSubTopic));
+
   /*
   配置 WIFI，在 loop 中断网，网络恢复后会自动重连上，不需要用 if (WiFi.status() == WL_CONNECTED) 去判断网络和做重连的操作
   上次如果有配置过wifi账号密码，启动后autoConnect如果连接不成功会等待10s，10s内把路由那边的wifi密码开起来还能连上不会自动变AP，
@@ -299,6 +384,14 @@ void setup()
   wifiManager.setHostname(apName);
   LOGD("\n\n Begin connect wifi, apName = %s", apName.c_str());
 
+  //配置Web设置wifi界面点击保存的回调函数，以及添加mqtt web配置菜单项
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
+  wifiManager.addParameter(&custom_mqtt_server);
+  wifiManager.addParameter(&custom_mqtt_port);
+  wifiManager.addParameter(&custom_mqtt_user);
+  wifiManager.addParameter(&custom_mqtt_pass);
+  wifiManager.addParameter(&custom_mqtt_topic);
+
   //开启定时器，10分钟内没连网成功则重启
   timer.once(60 * 10, resetESP8266);
 
@@ -308,6 +401,36 @@ void setup()
     LOGD("[ERROR] Failed to connect, now reset");
     delay(100);
     ESP.reset();
+  }
+
+  //点击保存，连网成功后才保存mqtt配置，不是点击保存时就保存。且如果上电没有走UI配网流程直接连网了也不保存。
+  if (isSaveConfig)
+  {
+    LOGD("Saving config");
+    strlcpy(config.mqttServer, custom_mqtt_server.getValue(), sizeof(config.mqttServer));
+    strlcpy(config.mqttPort, custom_mqtt_port.getValue(), sizeof(config.mqttPort));
+    strlcpy(config.mqttUser, custom_mqtt_user.getValue(), sizeof(config.mqttUser));
+    strlcpy(config.mqttPass, custom_mqtt_pass.getValue(), sizeof(config.mqttPass));
+    strlcpy(config.mqttSubTopic, custom_mqtt_topic.getValue(), sizeof(config.mqttSubTopic));
+
+    DynamicJsonDocument doc(1024);
+    doc["mqttServer"] = config.mqttServer;
+    doc["mqttPort"] = config.mqttPort;
+    doc["mqttUser"] = config.mqttUser;
+    doc["mqttPass"] = config.mqttPass;
+    doc["mqttSubTopic"] = config.mqttSubTopic;
+
+    File configFile = SPIFFS.open("/mqtt.json", "w");
+    if (configFile)
+    {
+      serializeJson(doc, *DBGCOM);
+      serializeJson(doc, configFile);
+      configFile.close();
+    }
+    else
+    {
+      LOGD("[ERROR] Failed to open config file for writing");
+    }
   }
 
   //开启 TCP server
