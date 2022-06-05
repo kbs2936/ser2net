@@ -55,7 +55,7 @@ struct MqttConfig config = {
     "1883",
     "",
     "",
-    "z2mp"};
+    "z2m"};
 
 //用于保存数据的标志
 bool isSaveConfig = false;
@@ -73,6 +73,8 @@ void getMqttConfig()
 #define READ_INT_CONFIG_FROM_JSON(name) \
   if (doc[#name])                       \
   config.name = doc[#name]
+
+  LOGD("\n");
 
   StaticJsonDocument<512> doc;
 
@@ -103,6 +105,7 @@ void getMqttConfig()
   READ_STR_CONFIG_FROM_JSON(mqttUser);
   READ_STR_CONFIG_FROM_JSON(mqttPass);
   READ_STR_CONFIG_FROM_JSON(mqttSubTopic);
+  serializeJson(doc, *DBGCOM);
   SPIFFS.end();
 }
 
@@ -363,7 +366,6 @@ void setup()
 #endif
 
   //从文件系统中读取mqtt的配置参数，以便带到web配网界面中显示
-  LOGD("\n");
   getMqttConfig();
   WiFiManagerParameter custom_mqtt_server("server", "mqtt_server", config.mqttServer, sizeof(config.mqttServer));
   WiFiManagerParameter custom_mqtt_port("port", "mqtt_port", config.mqttPort, sizeof(config.mqttPort));
@@ -413,23 +415,31 @@ void setup()
     strlcpy(config.mqttPass, custom_mqtt_pass.getValue(), sizeof(config.mqttPass));
     strlcpy(config.mqttSubTopic, custom_mqtt_topic.getValue(), sizeof(config.mqttSubTopic));
 
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(512);
     doc["mqttServer"] = config.mqttServer;
     doc["mqttPort"] = config.mqttPort;
     doc["mqttUser"] = config.mqttUser;
     doc["mqttPass"] = config.mqttPass;
     doc["mqttSubTopic"] = config.mqttSubTopic;
 
-    File configFile = SPIFFS.open("/mqtt.json", "w");
-    if (configFile)
+    if (SPIFFS.begin())
     {
-      serializeJson(doc, *DBGCOM);
-      serializeJson(doc, configFile);
-      configFile.close();
+      File configFile = SPIFFS.open("/mqtt.json", "w");
+      if (configFile)
+      {
+        serializeJson(doc, *DBGCOM);
+        serializeJson(doc, configFile);
+        configFile.close();
+      }
+      else
+      {
+        LOGD("[ERROR] Failed to open config file for writing");
+      }
+      SPIFFS.end();
     }
     else
     {
-      LOGD("[ERROR] Failed to open config file for writing");
+      LOGD("[ERROR] Mount spiffs failed.");
     }
   }
 
